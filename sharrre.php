@@ -8,13 +8,26 @@
   
   if(filter_var($_GET['url'], FILTER_VALIDATE_URL)){
     if($type == 'googlePlus'){  //source http://www.helmutgranda.com/2011/11/01/get-a-url-google-count-via-php/
-      $contents = parse('https://plusone.google.com/u/0/_/+1/fastbutton?url=' . $url . '&count=true');
-
-      preg_match( '/window\.__SSR = {c: ([\d]+)/', $contents, $matches );
-
-      if(isset($matches[0])){
-        $json['count'] = (int)str_replace('window.__SSR = {c: ', '', $matches[0]);
-      }
+        if (!file_exists("sharrre-cache")) {
+            mkdir("sharrre-cache");         
+        } 
+        $cache_file = "sharrre-cache/".base64_encode($_GET['url']);
+        // cache for 5 minutes
+        if (file_exists($cache_file) && (filemtime($cache_file) > (time() - 60 * 5 ))) {
+            $file = file_get_contents($cache_file);
+            $json['count'] = $file;
+        } else {
+            $contents = parse('https://plusone.google.com/u/0/_/+1/fastbutton?url=' . $url . '&count=true');
+            preg_match( '/window\.__SSR = {c: ([\d]+)/', $contents, $matches );
+            if(isset($matches[0])){
+                $json['count'] = (int)str_replace('window.__SSR = {c: ', '', $matches[0]);
+                file_put_contents($cache_file, $json['count'], LOCK_EX);
+            }
+            else{
+                file_put_contents($cache_file, "0", LOCK_EX);
+            }
+            
+        }
     }
     else if($type == 'stumbleupon'){
       $content = parse("http://www.stumbleupon.com/services/1.01/badge.getinfo?url=$url");
@@ -60,3 +73,4 @@
     }
     return $content;
   }
+?>
